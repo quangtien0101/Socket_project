@@ -27,8 +27,9 @@ def start_server():
 
     soc.listen(5)       # queue up to 5 requests
     print("File server now listening on {}:{} ...".format(host, port))
-    subprocess.call(['gnome-terminal','-e','python3 server_chat.py'])
+    subprocess.Popen("gnome-terminal -x python3 server_chat.py", stdout=subprocess.PIPE,stderr=None,shell=True)
     tcflush(sys.stdin, TCIFLUSH)
+
 
 
 
@@ -70,7 +71,21 @@ def client_thread(connection, ip, port, max_buffer_size = 2048):
 
         elif "--upload" in client_input:
             print ("Host request to upload")
-            upload_file(connection, ip, port, client_input)
+            if "--change_name" in client_input:
+                print("Host request to change name when upload")
+                parsing = client_input.split()
+                if len(parsing) < 5:
+                    print("Invalid argument")
+                    pass
+                else:
+                    filename = parsing[3]
+                    newfilename = parsing[4]
+                    Upload_process(filename,connection,newfilename)
+
+
+
+            else:
+                upload_file(connection, ip, port, client_input)
             
         
 
@@ -143,10 +158,12 @@ def upload_file(connection, ip, port, client_input):
         Upload_process(i, connection)
 
 
-def Upload_process(filename, connection):
+def Upload_process(filename, connection, newfilename = "default"):
+    if newfilename == "default":
+        newfilename = filename
     if filename != 'q':
         connection.send(filename.encode('utf8'))
-        print("sending "+filename)
+        print("asking for the file "+filename)
         data = connection.recv(2048).decode('utf8')
         print("data: " + data)
         if data[:6] == 'EXISTS':
@@ -154,7 +171,7 @@ def Upload_process(filename, connection):
             message = 'Y'
             if message == 'Y':
                 connection.send("OK".encode('utf8'))
-                f = open('/home/wayne/qt/Project_socket/File_folder/'+filename, 'wb')
+                f = open('/home/wayne/qt/Project_socket/File_folder/'+newfilename, 'wb')
                 data = connection.recv(2048)
                 totalRecv = len(data)
                 f.write(data)

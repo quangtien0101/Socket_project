@@ -21,21 +21,23 @@ def main():
         sys.exit()
 
     print("Enter 'quit' to exit")
-    subprocess.call(['gnome-terminal','-e','python3 client_chat.py'])
-    tcflush(sys.stdin, TCIFLUSH)
+   # subprocess.call(['gnome-terminal','-e','python3 client_chat.py'])
+    #tcflush(sys.stdin, TCIFLUSH)
+    sending_flag = True
+
     message = input("-> ")
-    
 
-
-
-    #encrypt message truoc khi gui
+    sending_flag = Allow_to_send(message)
 
     while message != 'quit':
-        connection.sendall(message.encode("utf8"))
+        if sending_flag == True:
+            connection.sendall(message.encode("utf8"))
 
-        if "start-chat" in message:
+        #reset the sending flag
+        if "--chat" in message:
             print("Opening chat services!")
-            subprocess.call(['gnome-terminal','-e','python3 client_chat.py'])
+            process = subprocess.Popen("gnome-terminal -x python3 client_chat.py", stdout=subprocess.PIPE,stderr=None,shell=True)
+
             tcflush(sys.stdin, TCIFLUSH)
 
         elif "--download" in message:
@@ -47,25 +49,51 @@ def main():
                 Download_process(filename, connection)
 
         elif "--upload" in message:
-            parsing = message.split()
-            items = parsing[1:]
-            for i in items:
-                filename = i
-                Upload_process(connection)
+            if "--change_name" in message:
+                print("Name change!")
+                parsing = message.split()
+                if len(parsing) < 4:
+                    print("Invalid argument")
+                    pass
+                else:
+                    Upload_process(connection)
+
+            else:
+                parsing = message.split()
+                items = parsing[1:]
+                for i in items:
+                    filename = i
+                    Upload_process(connection)
+
+        elif "--list --server" in message:
+        	os.system("ls /home/wayne/qt/Project_socket/File_folder")
+        elif "--list --local" in message:
+        	os.system("ls /home/wayne/qt/Project_socket/Download")
 
 
 
         else:
-        	response = connection.recv(2048).decode("utf8")
-        	if response == "-":
-        		pass
-        	else:
-        		print(response)
-        		        
-	        
+            response = connection.recv(2048).decode("utf8")
+            if response == "-":
+                pass
+            else:
+                print(response)
+                        
+            
         message = input("-> ")
+        sending_flag = Allow_to_send(message)
+
 
     connection.send(b'--quit--')
+       
+def Allow_to_send(message):
+    if "--chat" in message:
+        return False
+    elif "--list --local" in message:
+    	return False
+    elif "--list --server" in message:
+        return False
+    return True 
 
 def Download_process(filename, s):
     if filename != 'q':
