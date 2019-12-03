@@ -2,6 +2,7 @@
 import socket
 import select
 import errno
+import sys
 
 
 HEADER_LENGTH = 10
