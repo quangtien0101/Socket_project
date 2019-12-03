@@ -6,6 +6,8 @@ import os
 import traceback
 from termios import tcflush, TCIFLUSH
 from cryptography.fernet import Fernet
+from getpass import getpass
+
 
 file = open('secret_key.key', 'rb')
 KEY = file.read() # The key will be type bytes
@@ -16,7 +18,7 @@ def main():
     connection = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     host = "127.0.0.1"
     port = 8888
-
+    username =""
     #subprocess.call(['gnome-terminal','-e','python3 client_chat.py'])
 
     try:
@@ -28,7 +30,7 @@ def main():
     print("Enter 'quit' to exit")
    # subprocess.call(['gnome-terminal','-e','python3 client_chat.py'])
     #tcflush(sys.stdin, TCIFLUSH)
-    sending_flag = True
+    sending_flag = False
 
     message = input("-> ")
 
@@ -37,9 +39,31 @@ def main():
     while message != 'quit':
         if sending_flag == True:
             connection.sendall(message.encode("utf8"))
+            print("Message sent to server")
+            
+
+
+        if "--login" in message:
+            print("You want to login")
+            print("Username: "+message.split()[2])
+            password = getpass('Password: ')
+            print(password)
+            request_login = message + " -p "+password
+            print(request_login)
+            connection.sendall(request_login.encode("utf8"))
+
+            response = connection.recv(2048).decode("utf8")
+            if "OK" in response:
+                username = response[3:]
+                print("Welcome " + username)
+                username = response[3:]
+            else:
+                print(response)
+
+
 
         #reset the sending flag
-        if "--chat" in message:
+        elif "--chat" in message:
             print("Opening chat services!")
             process = subprocess.Popen("gnome-terminal -x python3 client_chat.py", stdout=subprocess.PIPE,stderr=None,shell=True)
 
@@ -83,7 +107,7 @@ def main():
                     filename = i
                     Upload_process(connection)
 
-            
+                
 
         elif "--list --server" in message:
         	os.system("ls /home/wayne/qt/Project_socket/File_folder")
@@ -113,7 +137,10 @@ def Allow_to_send(message):
     	return False
     elif "--list --server" in message:
         return False
-    return True 
+    elif "--login" in message:
+        return False
+    else:
+        return True 
 
 def Download_process(filename, s):
     if filename != 'q':

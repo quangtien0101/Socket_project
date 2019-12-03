@@ -8,10 +8,14 @@ import os
 from termios import tcflush, TCIFLUSH
 
 from cryptography.fernet import Fernet
+import Load_credentials
 
 file = open('secret_key.key', 'rb')
 KEY = file.read() # The key will be type bytes
 file.close()
+
+credentials = Load_credentials.Load()
+
 
 def main():
     start_server()
@@ -21,9 +25,13 @@ def start_server():
     host = "127.0.0.1"
     port = 8888         # arbitrary non-privileged port
 
+
     soc = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     soc.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)   # SO_REUSEADDR flag tells the kernel to reuse a local socket in TIME_WAIT state, without waiting for its natural timeout to expire
     #print("Socket created")
+
+
+
 
     try:
         soc.bind((host, port))
@@ -55,8 +63,52 @@ def start_server():
 
 
 def client_thread(connection, ip, port, max_buffer_size = 2048):
-    is_active = True
+    
+    #Wait for the client to be authenticate first
+    Wait_for_authentication = True
+    while Wait_for_authentication:
+        print("Waiting for user authentication...")
+        client_input = receive_input(connection, max_buffer_size)
+        if "--login" in client_input:
+            print("User is try to login")
 
+            #check for the username("--login -u Obama -p Bruh!")
+            print(client_input)
+            parsing = client_input.split()
+            if len(parsing) != 6:
+                connection.sendall("Invalid argument numbers!".encode('utf8'))
+                pass
+            if parsing[2] != '-u' and parsing[4] != '-p' and parsing[1] != '--login':
+                connection.sendall('Invalid arguments for username and password'.encode('utf8'))
+                pass
+            
+            else:
+                username = parsing[3]
+                print(username)
+                password = parsing[5]
+                print(password)
+                
+                for u in credentials:
+                    print(u +":"+credentials[u])
+                    if (username == u):
+                        if (credentials[u].strip('\n') == password):
+                            connection.sendall(("OK "+username).encode('utf8'))
+                            Wait_for_authentication = False
+                            break
+
+                if Wait_for_authentication == True:
+                    connection.sendall("ERR! Wrong username or password!".encode('utf8'))
+
+
+
+            
+        else:
+            if Wait_for_authentication == False:
+                break
+            print("Processed result: {}".format(client_input))
+            connection.sendall("-".encode("utf8"))
+    
+    is_active = True
     while is_active:
         print("Waiting for incomming transmission...")
         client_input = receive_input(connection, max_buffer_size)
