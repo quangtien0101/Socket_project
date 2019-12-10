@@ -10,12 +10,16 @@ from termios import tcflush, TCIFLUSH
 from cryptography.fernet import Fernet
 import Load_credentials
 
+import affineCipher
+#load KEY and Credential
 file = open('secret_key.key', 'rb')
 KEY = file.read() # The key will be type bytes
 file.close()
+decrypt_f = Fernet(KEY)
 
 credentials = Load_credentials.Load()
 
+online_users = {}
 
 def main():
     start_server()
@@ -66,12 +70,13 @@ def client_thread(connection, ip, port, max_buffer_size = 2048):
     
     #Wait for the client to be authenticate first
     Wait_for_authentication = True
+    username = ""
     while Wait_for_authentication:
         print("Waiting for user authentication...")
         client_input = receive_input(connection, max_buffer_size)
         if "--login" in client_input:
             print("User is try to login")
-
+            # l = {"obama": ["yobama", "1/2/1970", "Bruh!"]}
             #check for the username("--login -u Obama -p Bruh!")
             print(client_input)
             parsing = client_input.split()
@@ -89,9 +94,9 @@ def client_thread(connection, ip, port, max_buffer_size = 2048):
                 print(password)
                 
                 for u in credentials:
-                    print(u +":"+credentials[u])
+                    print(u +":"+credentials[u][0])
                     if (username == u):
-                        if (credentials[u].strip('\n') == password):
+                        if (credentials[u][0].strip('\n') == password):
                             connection.sendall(("OK "+username).encode('utf8'))
                             Wait_for_authentication = False
                             break
@@ -108,7 +113,9 @@ def client_thread(connection, ip, port, max_buffer_size = 2048):
             print("Processed result: {}".format(client_input))
             connection.sendall("-".encode("utf8"))
     
+
     is_active = True
+    online_users.update({username: ip}) 
     while is_active:
         print("Waiting for incomming transmission...")
         client_input = receive_input(connection, max_buffer_size)
@@ -118,6 +125,7 @@ def client_thread(connection, ip, port, max_buffer_size = 2048):
             connection.close()
             print("Connection " + ip + ":" + port + " closed")
             is_active = False
+            del online_users[username]
         
 
         elif "--download" in client_input:
@@ -153,7 +161,24 @@ def client_thread(connection, ip, port, max_buffer_size = 2048):
             else:
                 upload_file(connection, ip, port, client_input)
             
-        
+        elif "--list --online" in client_input:
+            print("Host request to get the online users")
+
+            users = ""
+            for i in online_users:
+                print(i)
+                users = users + i + ","
+
+            print(users)
+            connection.sendall(users.encode('utf8'))
+
+        elif "--list --info" in client_input:
+            print("User want to know his/her info")
+            info = credentials[username]
+            s = info[1] + "," + info[2]
+            
+            connection.sendall(s.encode('utf8'))
+
 
         else:
             print("Processed result: {}".format(client_input))
@@ -224,7 +249,7 @@ def upload_file(connection, ip, port, client_input):
         Upload_process(i, connection)
 
 
-def Upload_process(filename, connection, newfilename = "default", decrypted = False):
+def Upload_process(filename, connection, newfilename = "default", decrypt = False):
     if newfilename == "default":
         newfilename = filename
     if filename != 'q':
@@ -240,27 +265,64 @@ def Upload_process(filename, connection, newfilename = "default", decrypted = Fa
                 f = open('/home/wayne/qt/Project_socket/File_folder/'+newfilename, 'wb')
                 data = connection.recv(2048)
                 totalRecv = len(data)
+                print("About to write")
 
-                if decrypted == True:
-                    decrypt_f = Fernet(KEY)
-                    data = decrypt_f.decrypt(data)
 
                 f.write(data)
                 while totalRecv < filesize:
                     data = connection.recv(2048)
 
-                    if decrypted == True:
-                        decrypt_f = Fernet(KEY)
-                        data = decrypt_f.decrypt(data)
+                    # if decrypted == True:
+                    #     encrypt_file = data
+                    #     data = decrypt_f.decrypt(encrypt_file)
+                    #     print("Decrypted")
 
                     totalRecv += len(data)
                     f.write(data)
                     print ("{0:.2f}".format((totalRecv/float(filesize))*100)+ "% Done")
                 print ("upload complete!")
                 f.close()
+
+
+                if decrypt == True:
+                    decrypt_file(newfilename)
+                create_encrypted_file(newfilename)
+                
         else:
             print ("File Does Not Exist!")
 
+def create_encrypted_file(filename):
+    if ".txt" not in filename:
+        print("Cannot encrypt non txt file")
+        
+    else:
+        file_directory = "/home/wayne/qt/Project_socket/File_folder/Encrypted/" + filename
+        f_in =  open('/home/wayne/qt/Project_socket/File_folder/' + filename, "r")
+        f_out = open(file_directory, 'w')
+        message = f_in.read()
+        f_in.close()
+        encrypted_message = affineCipher.execute("encrypt", message)
+        f_out.write(encrypted_message)
+
+        
+        f_out.close()
+
+def decrypt_file(filename):
+    if ".txt" not in filename:
+        print("Cannot decrypt non txt file")
+        
+    else:
+        file_directory = "/home/wayne/qt/Project_socket/File_folder/" + filename
+        f_in =  open('/home/wayne/qt/Project_socket/File_folder/' + filename, "r")
+        
+        message = f_in.read()
+        f_in.close()
+        f_out = open(file_directory, 'w')
+        encrypted_message = affineCipher.execute("decrypt", message)
+        f_out.write(encrypted_message)
+
+        
+        f_out.close()
 
 if __name__ == "__main__":
     main()

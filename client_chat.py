@@ -7,7 +7,8 @@ import sys
 
 HEADER_LENGTH = 10
 
-IP = "192.168.1.7"
+hostname = socket.gethostname()    
+IP= socket.gethostbyname(hostname)
 PORT = 1234
 print("Welcome to the chat room")
 

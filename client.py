@@ -7,12 +7,12 @@ import traceback
 from termios import tcflush, TCIFLUSH
 from cryptography.fernet import Fernet
 from getpass import getpass
-
+import affineCipher
 
 file = open('secret_key.key', 'rb')
 KEY = file.read() # The key will be type bytes
 file.close()
-
+encryption_f = Fernet(KEY)
 
 def main():
     connection = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -30,11 +30,46 @@ def main():
     print("Enter 'quit' to exit")
    # subprocess.call(['gnome-terminal','-e','python3 client_chat.py'])
     #tcflush(sys.stdin, TCIFLUSH)
-    sending_flag = False
+    sending_flag = True
 
-    message = input("-> ")
+    message = input(">> ")
 
     sending_flag = Allow_to_send(message)
+
+    is_login = False
+    while not is_login:
+        
+
+        if "--login" in message:
+            if len(message.split()) != 3:
+                print("Invalid argments")
+                pass
+            print("You want to login")
+            print("UserName: "+message.split()[2])
+            password = getpass('Password: ')
+            print(password)
+            request_login = message + " -p "+password
+            print(request_login)
+            connection.sendall(request_login.encode("utf8"))
+
+            response = connection.recv(2048).decode("utf8")
+            if "OK" in response:
+                username = response[3:]
+                print("Welcome " + username)
+                username = response[3:]
+                is_login = True
+            else:
+                print(response)
+                username = ""
+        else:
+            print("command: '--login -u username'")
+                        
+            
+        message = input(">> ")
+        sending_flag = Allow_to_send(message)
+
+
+
 
     while message != 'quit':
         if sending_flag == True:
@@ -45,7 +80,7 @@ def main():
 
         if "--login" in message:
             print("You want to login")
-            print("Username: "+message.split()[2])
+            print("UserName: "+message.split()[2])
             password = getpass('Password: ')
             print(password)
             request_login = message + " -p "+password
@@ -59,8 +94,10 @@ def main():
                 username = response[3:]
             else:
                 print(response)
+                username = ""
 
-
+        elif "--help" in message:
+            print_commands()
 
         #reset the sending flag
         elif "--chat" in message:
@@ -91,13 +128,17 @@ def main():
             #upload a file with encryption
             #usage: --upload --encrypt Hello.txt
             elif "--encrypt" in message:
-                print("encrypt message before send")
-                parsing = message.split()
-                if len(parsing) != 3:
-                    print ("Invalid argument numbers")
-                    pass
+                if ".txt" not in message:
+                    print("Can not encrypt non txt files")
                 else:
-                    Upload_process(connection,True)
+                    print("encrypt message before send")
+                    parsing = message.split()
+                    if len(parsing) != 3:
+                        print ("Invalid argument numbers")
+                        pass
+                    else:
+                        print("Begining uploading with encryption")
+                        Upload_process(connection,True)
 
             #normal multi-file upload
             else:
@@ -114,7 +155,22 @@ def main():
         elif "--list --local" in message:
         	os.system("ls /home/wayne/qt/Project_socket/Download")
 
+        elif "--list --online" in message:
+            print("List of online users:")
+            response = connection.recv(4096).decode('utf8')
+            names = response.split(',')
+            #print(names)
+            for i in names:
+                if i == "":
+                    pass
+                print (i)
 
+        elif "--list --info" in message:
+            response = connection.recv(4096).decode("utf8")
+            info = response.split(',')
+            print("Your username: " + username)
+            print("DOB: " + info[0])
+            print("Your note: " + info[1])
 
         else:
             response = connection.recv(2048).decode("utf8")
@@ -122,9 +178,10 @@ def main():
                 pass
             else:
                 print(response)
-                        
             
-        message = input("-> ")
+            print("'--help' to show options")
+            
+        message = input(">> ")
         sending_flag = Allow_to_send(message)
 
 
@@ -139,6 +196,8 @@ def Allow_to_send(message):
         return False
     elif "--login" in message:
         return False
+    elif "--help" in message:
+        return False
     else:
         return True 
 
@@ -149,7 +208,7 @@ def Download_process(filename, s):
         if data[:6] == 'EXISTS':
             filesize = int(data[6:])
             message = input("File exists, " + str(filesize) +"Bytes, download? (Y/N)? -> ")
-            if message == 'Y':
+            if message.upper() == 'Y':
                 s.send("OK".encode('utf8'))
                 f = open('/home/wayne/qt/Project_socket/Download/'+filename, 'wb')
                 data = s.recv(2048)
@@ -167,6 +226,7 @@ def Download_process(filename, s):
 
 
 def Upload_process(Connection, encrypt = False):
+
     filename = Connection.recv(2048).decode('utf8')
     print("receving " +filename)
     name = filename
@@ -174,27 +234,37 @@ def Upload_process(Connection, encrypt = False):
     print("the path is " + filename)
 
     if os.path.isfile(filename):
+        if encrypt == True:
+            create_encrypted_file(name)
+
+
+
+
         Connection.send(("EXISTS " + str(os.path.getsize(filename))).encode('utf8'))
         print("Uploading...")
         userResponse = Connection.recv(2048).decode('utf8')
         if userResponse[:2] == 'OK':
-            with open(filename, 'rb') as f:
-                i = 0
-                bytesToSend = f.read(2048)
+            f = 1 # init a dumb variable for f
+            if encrypt == True:
+                f = open("/home/wayne/qt/Project_socket/Download/Encrypted/" + name, 'rb')
+            else:
+                f = open(filename, 'rb')
+
+            i = 0
+            bytesToSend = f.read(2048)
 
                 
-                if encrypt == True:
-                    encryption_f = Fernet(KEY)
-                    bytesToSend = encryption_f.encrypt(bytesToSend)
-                Connection.send(bytesToSend)
 
-                print("sent!" + str(i))
-                i = i + 1
-                while i<100000:
-                    bytesToSend = f.read(2048)
-                    Connection.send(bytesToSend)
-                    print("sent" + str(i))
-                    i = i+1
+            Connection.send(bytesToSend)
+
+            print("sent!" + str(i))
+            i = i + 1
+            while i<10000:
+                bytesToSend = f.read(2048)
+
+                Connection.send(bytesToSend)
+                print("sent" + str(i))
+                i = i+1
 
 
             f.close()
@@ -204,6 +274,36 @@ def Upload_process(Connection, encrypt = False):
 
     print("Finish Retriving")
 
+
+
+
+def create_encrypted_file(filename):
+    if ".txt" not in filename:
+        print("Cannot encrypt non txt file")
+        
+    else:
+        file_directory = "/home/wayne/qt/Project_socket/Download/Encrypted/" + filename
+        f_in =  open('/home/wayne/qt/Project_socket/Download/' + filename, "r")
+        f_out = open(file_directory, 'w')
+        message = f_in.read()
+        f_in.close()
+        encrypted_message = affineCipher.execute("encrypt", message)
+        f_out.write(encrypted_message)
+
+        
+        f_out.close()
+        print ("Done making a new encrypted copy!")
+
+def print_commands():
+    print("'--list --local' to show files on server folder")
+    print("'--list --server' to show files on local folder")
+    print("'--list --info' to show users information")
+    print("'--list --online' to show online users")
+    print("'--download filename1 filename2 ...' to download one or multiple files from server")
+    print("'--upload --change_name file_name alternative_name' to upload file to server with alternative name")
+    print("'--upload --encrypt file1.txt' to upload file with txt format to server")
+    print("'--upload file1 file2 file3 ...' to upload one or multiple files to server")
+    print("'--chat' to open the chat room")
 
 
 if __name__ == "__main__":
