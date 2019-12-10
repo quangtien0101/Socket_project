@@ -9,7 +9,7 @@ from termios import tcflush, TCIFLUSH
 
 from cryptography.fernet import Fernet
 import Load_credentials
-
+import Write_credentials
 import affineCipher
 #load KEY and Credential
 file = open('secret_key.key', 'rb')
@@ -127,7 +127,8 @@ def client_thread(connection, ip, port, max_buffer_size = 2048):
             is_active = False
             del online_users[username]
         
-
+        elif "--change_password" in client_input:
+            change_password(client_input,connection,username)
         elif "--download" in client_input:
             print ("Host request to download")
             #connection.sendall("you request to download".encode("utf8"))
@@ -323,6 +324,43 @@ def decrypt_file(filename):
 
         
         f_out.close()
+
+def change_password(client_input, connection, usrname):
+    #check for credentials
+    #credentials[usrname][0]
+    print(client_input)
+    parsing = client_input.split()
+    if len(parsing) != 8:
+        connection.sendall("Invalid argument numbers!".encode('utf8'))
+        pass
+    elif parsing[2] != '-u' and parsing[4] != '-p' and parsing[1] != '--login' and parsing[6] != '-np':
+        connection.sendall('Invalid arguments for username and password'.encode('utf8'))
+        pass
+    elif parsing[3] != usrname:
+        connection.sendall("Invalid username!").encode('utf8')
+    else:
+        username = parsing[3]
+        print(username)
+        password = parsing[5]
+        print(password)
+        
+        new_password = parsing[7]
+        print(new_password)
+
+        for u in credentials:
+            print(u +":"+credentials[u][0])
+            if (username == u):
+                if (credentials[u][0].strip('\n') == password):
+                    connection.sendall(("OK ").encode('utf8'))
+
+                    #write a new password
+                    info = credentials[usrname]
+                    DOB, Note = info[1], info[2]
+                    credentials.update({usrname: [new_password, DOB, Note]})
+                    print("Change password successfuly!")
+                    Write_credentials.Write(credentials)
+                    break
+
 
 if __name__ == "__main__":
     main()

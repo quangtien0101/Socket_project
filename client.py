@@ -49,7 +49,7 @@ def main():
             password = getpass('Password: ')
             print(password)
             request_login = message + " -p "+password
-            print(request_login)
+            #print(request_login)
             connection.sendall(request_login.encode("utf8"))
 
             response = connection.recv(2048).decode("utf8")
@@ -98,6 +98,9 @@ def main():
 
         elif "--help" in message:
             print_commands()
+
+        elif "--change_password" in message:
+            change_password(username, connection)
 
         #reset the sending flag
         elif "--chat" in message:
@@ -198,6 +201,8 @@ def Allow_to_send(message):
         return False
     elif "--help" in message:
         return False
+    elif "--change_password" in message:
+        return False
     else:
         return True 
 
@@ -274,9 +279,6 @@ def Upload_process(Connection, encrypt = False):
 
     print("Finish Retriving")
 
-
-
-
 def create_encrypted_file(filename):
     if ".txt" not in filename:
         print("Cannot encrypt non txt file")
@@ -305,6 +307,21 @@ def print_commands():
     print("'--upload file1 file2 file3 ...' to upload one or multiple files to server")
     print("'--chat' to open the chat room")
 
+def change_password(username, connection):
+    current_pass = getpass("Enter your current password: ")
+    new_password = getpass("Enter your new password: ")
+    confirm_password = getpass("COnfirm your new password: ")
+
+    if new_password != confirm_password:
+        print("Wrong password confirmation")
+    else:
+        request = "--change_password -u " + username + " -p " + current_pass + " -np " + new_password
+        connection.sendall(request.encode('utf8'))
+        response = connection.recv(2048).decode('utf8')
+        if "OK" in response:
+            print("Change password successfully!")
+        else:
+            print("Current password is not correct!")
 
 if __name__ == "__main__":
     main()
