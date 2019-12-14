@@ -14,9 +14,9 @@ def execute(myMode, myMessage):
     elif myMode == 'decrypt':
         print("decrypting")
         translated = decryptMessage(myKey, myMessage)
-    print('Key: %s' % (myKey))
-    print('%sed text:' % (myMode.title()))
-    print(translated)
+    #print('Key: %s' % (myKey))
+    #print('%sed text:' % (myMode.title()))
+    #print(translated)
     #print('Full %sed text copied to clipboard.' % (myMode))
     return translated
 
@@ -75,6 +75,3 @@ def getRandomKey():
         if cryptomath.gcd(keyA, len(SYMBOLS)) == 1:
             return keyA * len(SYMBOLS) + keyB
 
-
-# If affineCipher.py is run (instead of imported as a module) call
-# the main() function.

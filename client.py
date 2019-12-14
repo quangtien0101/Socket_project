@@ -102,12 +102,68 @@ def main():
         elif "--change_password" in message:
             change_password(username, connection)
 
+        elif "--change_info" in message:
+            change_user_info(username, connection)
         #reset the sending flag
         elif "--chat" in message:
-            print("Opening chat services!")
-            process = subprocess.Popen("gnome-terminal -x python3 client_chat.py", stdout=subprocess.PIPE,stderr=None,shell=True)
+            # "--chat Putin"
+            if "--encrypt" in message:
+                parsing = message.split()
+                if len(parsing) !=3:
+                    print('INvalid command')
+                else:
+                    connection.sendall(message.encode('utf8'))
+                    port = connection.recv(2048).decode('utf8')
+                    print("Opening chat services with encryption")
+                    process = subprocess.Popen("gnome-terminal -x python chat_client.py 127.0.0.1 " +port +" "+username+" True", stdout=subprocess.PIPE,stderr=None,shell=True)
 
-            tcflush(sys.stdin, TCIFLUSH)
+            else:
+                #print(message)
+                parsing = message.split()
+                if len(parsing) !=2 :
+                    print("Invalid commands")
+                else:
+                    connection.sendall(message.encode('utf8'))
+                    port = connection.recv(2048).decode('utf8') 
+                    print("Port#: " + port)   
+                    print("Opening chat services!")
+                    process = subprocess.Popen("gnome-terminal -x python chat_client.py 127.0.0.1 " +port+" "+username+" False", stdout=subprocess.PIPE,stderr=None,shell=True)
+
+                    tcflush(sys.stdin, TCIFLUSH)
+
+        elif "--list --room" in message:
+            print("Retriving chat room:")
+            response = connection.recv(4096).decode('utf8')
+            if response == "Null":
+                print("Thre is 0 room")
+                continue
+
+            rooms = response.split(';')
+            #print(names)
+            for i in rooms:
+                if i == "":
+                    continue
+                print (i)
+
+        elif "--join --room" in message:
+            print("Enter the owner's room available")
+            owner = input()
+            message = "--join --room " + username + " " + owner
+            connection.sendall(message.encode('utf8'))
+            response = connection.recv(2048).decode('utf8')
+            if "ERR" in response:
+                print(response)
+            elif "OK" in response:
+                parse = response.split('!')
+                print(parse)
+                p = parse[-1]
+                print("port#:"+p)
+                print("Opening chat services!")
+                process = subprocess.Popen("gnome-terminal -x python chat_client.py 127.0.0.1 " +p+" "+username+" False", stdout=subprocess.PIPE,stderr=None,shell=True)
+
+                
+
+
 
         elif "--download" in message:
 
@@ -202,6 +258,10 @@ def Allow_to_send(message):
     elif "--help" in message:
         return False
     elif "--change_password" in message:
+        return False
+    elif "--change_info" in message:
+        return False
+    elif "--join --room" in message:
         return False
     else:
         return True 
@@ -305,12 +365,14 @@ def print_commands():
     print("'--upload --change_name file_name alternative_name' to upload file to server with alternative name")
     print("'--upload --encrypt file1.txt' to upload file with txt format to server")
     print("'--upload file1 file2 file3 ...' to upload one or multiple files to server")
+    print("'--change_password' to change your password")
+    print("'--change_info' to change your information")
     print("'--chat' to open the chat room")
 
 def change_password(username, connection):
     current_pass = getpass("Enter your current password: ")
     new_password = getpass("Enter your new password: ")
-    confirm_password = getpass("COnfirm your new password: ")
+    confirm_password = getpass("Confirm your new password: ")
 
     if new_password != confirm_password:
         print("Wrong password confirmation")
@@ -318,10 +380,25 @@ def change_password(username, connection):
         request = "--change_password -u " + username + " -p " + current_pass + " -np " + new_password
         connection.sendall(request.encode('utf8'))
         response = connection.recv(2048).decode('utf8')
+        print(response)
         if "OK" in response:
             print("Change password successfully!")
         else:
             print("Current password is not correct!")
+
+def change_user_info(username, connection):
+    current_pass = getpass("Enter your current password: ")
+
+    dob = input("Enter your new DOB: ")
+    Notes = input ("Enter your new note: ")
+
+    request = "--change_info -u " + username + " -p " + current_pass + " -dob " + dob + " -n " + Notes
+    connection.sendall(request.encode('utf8'))
+    response = connection.recv(2048).decode('utf8')
+    if "OK" in response:
+        print("Change info successfully!")
+    else:
+        print("Current password is not correct!")
 
 if __name__ == "__main__":
     main()
