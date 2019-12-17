@@ -210,9 +210,15 @@ def main():
                 
 
         elif "--list --server" in message:
-        	os.system("ls /home/wayne/qt/Project_socket/File_folder")
+        	#os.system("ls /home/wayne/qt/Project_socket/File_folder")
+            print("Server folder: ")
+            response = connection.recv(4096).decode('utf8')
+            #response = response.decode('utf8')
+            response = response.split('\n')
+            for i in response:
+                print (i) 
         elif "--list --local" in message:
-        	os.system("ls /home/wayne/qt/Project_socket/Download")
+        	os.system("cd Download/ && ls")
 
         elif "--list --online" in message:
             print("List of online users:")
@@ -251,8 +257,8 @@ def Allow_to_send(message):
         return False
     elif "--list --local" in message:
     	return False
-    elif "--list --server" in message:
-        return False
+    # elif "--list --server" in message:
+    #     return False
     elif "--login" in message:
         return False
     elif "--help" in message:

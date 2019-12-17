@@ -202,6 +202,13 @@ def client_thread(connection, ip, port, max_buffer_size = 2048):
                 print(room)
                 connection.sendall(room.encode('utf8'))
 
+        elif "--list --server" in client_input:
+            #message = os.system("cd /File_folder && ls")
+            proc = subprocess.Popen("cd File_folder && ls", shell=True, stdout=subprocess.PIPE, )
+            message=proc.communicate()[0]
+            #output = output.decode('utf8')
+            #message = output.split('\n')
+            connection.sendall(message)
         elif "--chat" in client_input:
             parsing = client_input.split()
             print(parsing)
