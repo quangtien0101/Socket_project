@@ -1,3 +1,4 @@
+#!/usr/bin/python2
 import socket
 import select
 from thread import *

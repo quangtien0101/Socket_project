@@ -5,24 +5,26 @@ import subprocess
 import os
 import traceback
 from termios import tcflush, TCIFLUSH
-from cryptography.fernet import Fernet
 from getpass import getpass
 import affineCipher
 
-file = open('secret_key.key', 'rb')
-KEY = file.read() # The key will be type bytes
-file.close()
-encryption_f = Fernet(KEY)
+
+if len(sys.argv) != 3:
+    print ("Correct usage: python3 client.py IP_address port_number")
+    exit()
+host = str(sys.argv[1])
+Port = int(sys.argv[2])
+
 
 def main():
     connection = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    host = "127.0.0.1"
-    port = 8888
+    #host = "127.0.0.1"
+    #port = 8888
     username =""
     #subprocess.call(['gnome-terminal','-e','python3 client_chat.py'])
 
     try:
-        connection.connect((host, port))
+        connection.connect((host, Port))
     except:
         print("Connection error")
         sys.exit()
@@ -39,17 +41,27 @@ def main():
     is_login = False
     while not is_login:
         
-
         if "--login" in message:
             if len(message.split()) != 3:
                 print("Invalid argments")
                 pass
-            print("You want to login")
             print("UserName: "+message.split()[2])
             password = getpass('Password: ')
-            print(password)
-            request_login = message + " -p "+password
-            #print(request_login)
+            #print(password)
+            ENCRYPTION = input("Do you want to login with encryption (Y/N)")
+            ENCRYPTION = ENCRYPTION.lower()
+
+            name = message.split()[2]
+            request_login = "--login -u " +name +" -p "+password
+            
+            if ENCRYPTION == "y":
+                name = affineCipher.execute("encrypt", name)
+                password = affineCipher.execute("encrypt", password)
+                request_login = "--login -u " +name +" -p "+password + " -e"
+
+            
+
+            print(request_login)
             connection.sendall(request_login.encode("utf8"))
 
             response = connection.recv(2048).decode("utf8")
@@ -57,10 +69,13 @@ def main():
                 username = response[3:]
                 print("Welcome " + username)
                 username = response[3:]
-                is_login = True
             else:
                 print(response)
                 username = ""
+
+
+    
+
         else:
             print("command: '--login -u username'")
                         
@@ -82,7 +97,7 @@ def main():
             print("You want to login")
             print("UserName: "+message.split()[2])
             password = getpass('Password: ')
-            print(password)
+            #print(password)
             request_login = message + " -p "+password
             print(request_login)
             connection.sendall(request_login.encode("utf8"))
