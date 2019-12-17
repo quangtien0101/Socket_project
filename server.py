@@ -25,31 +25,39 @@ online_users = {}
 
 chat_room = {}
 
+if len(sys.argv) != 3:
+    print ("Correct usage: python3 client.py IP_address port_number")
+    exit()
+
+host = str(sys.argv[1])
+Port = int(sys.argv[2])
+
+
 #HOST_ADDRESS = gethostbyname()
 def main():
     start_server()
 
 
 def start_server():
-    host = "127.0.0.1"
-    port = 8888        
+    #host = "127.0.0.1"
+    #port = 8888        
 
 
     soc = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     soc.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)   # SO_REUSEADDR flag tells the kernel to reuse a local socket in TIME_WAIT state, without waiting for its natural timeout to expire
     #print("Socket created")
 
-
+    
 
 
     try:
-        soc.bind((host, port))
+        soc.bind((host, Port))
     except:
         print("Bind failed. Error : " + str(sys.exc_info()))
         sys.exit()
 
     soc.listen(5)       # queue up to 5 requests
-    print("File server now listening on {}:{} ...".format(host, port))
+    print("File server now listening on {}:{} ...".format(host, Port))
     #subprocess.Popen("gnome-terminal -x python chat_server.py 127.0.0.1 12345", stdout=subprocess.PIPE,stderr=None,shell=True)
     #tcflush(sys.stdin, TCIFLUSH)
 
@@ -80,23 +88,38 @@ def client_thread(connection, ip, port, max_buffer_size = 2048):
         print("Waiting for user authentication...")
         client_input = receive_input(connection, max_buffer_size)
         if "--login" in client_input:
+            encrypt = False
             print("User is try to login")
             # l = {"obama": ["yobama", "1/2/1970", "Bruh!"]}
             #check for the username("--login -u Obama -p Bruh!")
             print(client_input)
             parsing = client_input.split()
-            if len(parsing) != 6:
+        
+            if len(parsing) == 7 and parsing[6] == "-e":
+                encrypt = True
+                print("Require decryption for password!")
+
+            elif len(parsing) != 6:
                 connection.sendall("Invalid argument numbers!".encode('utf8'))
                 pass
+
+
             if parsing[2] != '-u' and parsing[4] != '-p' and parsing[1] != '--login':
                 connection.sendall('Invalid arguments for username and password'.encode('utf8'))
                 pass
             
+            
+
             else:
                 username = parsing[3]
                 print(username)
                 password = parsing[5]
+                if encrypt:
+                    username = affineCipher.execute("decrypt", username)
+                    password = affineCipher.execute("decrypt", password)
+                print(username)
                 print(password)
+
                 
                 for u in credentials:
                     print(u +":"+credentials[u][0])
