@@ -9,10 +9,10 @@ def execute(myMode, myMessage):
     print(myMessage)
     translated = ""
     if myMode == 'encrypt':
-        print("encrypting")
+        #print("encrypting")
         translated = encryptMessage(myKey, myMessage)
     elif myMode == 'decrypt':
-        print("decrypting")
+        #print("decrypting")
         translated = decryptMessage(myKey, myMessage)
     #print('Key: %s' % (myKey))
     #print('%sed text:' % (myMode.title()))

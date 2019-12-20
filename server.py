@@ -132,6 +132,31 @@ def client_thread(connection, ip, port, max_buffer_size = 2048):
                 if Wait_for_authentication == True:
                     connection.sendall("ERR! Wrong username or password!".encode('utf8'))
 
+        elif "--register" in client_input:
+            print("Client request to create a new account!")
+            parsing = client_input.split()
+            
+            username = parsing[3]
+            print(username)
+            password = parsing[5]
+            print(password)
+        
+            DOB = parsing[7]
+            print(DOB)
+
+            Note = ""
+            n = parsing[9:]
+
+            for i in n:
+                Note += i
+                Note += " "
+
+
+            credentials.update({username: [password, DOB, Note]})
+            print("Change INFO successfuly!")
+            Write_credentials.Write(credentials)
+            connection.sendall("OK".encode('utf8'))
+
 
 
             
@@ -210,6 +235,22 @@ def client_thread(connection, ip, port, max_buffer_size = 2048):
             s = info[1] + "," + info[2]
             
             connection.sendall(s.encode('utf8'))
+
+        #Get other info
+        elif "--list --u_info" in client_input:
+            print("Get other user info")
+            parsing = client_input.split()
+            username = parsing[3]
+            s = "Error! Can't find username"
+            for u in credentials:
+                #print(u +":"+credentials[u][0])
+                if (username == u):
+                    info = credentials[username]
+                    s = info[1] + "," + info[2] +" OK"
+                    break
+
+            connection.sendall(s.encode('utf8'))
+
 
         elif "--list --room" in client_input:
             print("Host request to get available room")

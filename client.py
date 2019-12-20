@@ -69,13 +69,31 @@ def main():
                 username = response[3:]
                 print("Welcome " + username)
                 username = response[3:]
+                is_login = True
             else:
                 print(response)
                 username = ""
 
 
     
-
+        elif "--register" in message:
+            print("REGISTER A NEW ACCOUNT")
+            u_name = input("Username: ")
+            password = getpass('Password: ')
+            confirm_password = getpass ('Confirm password: ')
+            
+            if password != confirm_password:
+                print("Password does not match!")
+            else:
+                Dob = input("Enter your DOB (DD/MM/YYYY): ")
+                Notes = input("Enter your note: ")
+                request = "--register -u " + u_name + " -p "+password +" -dob " + Dob +" -n "+ Notes
+                connection.sendall(request.encode('utf8'))
+                response = connection.recv(2048).decode('utf8')
+                if "OK" in response:
+                    print("Success!")
+                else:
+                    print("Fail to create an account")
         else:
             print("command: '--login -u username'")
                         
@@ -176,10 +194,6 @@ def main():
                 print("Opening chat services!")
                 process = subprocess.Popen("gnome-terminal -x python chat_client.py 127.0.0.1 " +p+" "+username+" False", stdout=subprocess.PIPE,stderr=None,shell=True)
 
-                
-
-
-
         elif "--download" in message:
 
             parsing = message.split()
@@ -234,7 +248,6 @@ def main():
                 print (i) 
         elif "--list --local" in message:
         	os.system("cd Download/ && ls")
-
         elif "--list --online" in message:
             print("List of online users:")
             response = connection.recv(4096).decode('utf8')
@@ -244,13 +257,28 @@ def main():
                 if i == "":
                     pass
                 print (i)
-
         elif "--list --info" in message:
             response = connection.recv(4096).decode("utf8")
             info = response.split(',')
             print("Your username: " + username)
             print("DOB: " + info[0])
             print("Your note: " + info[1])
+
+
+        elif "--list --u_info" in message:
+            uname = input("Enter the desire username: ")
+            request = "--list -u_info " + uname
+            connection.sendall(request.encode('utf8'))
+            response = connection.recv(4096).decode('utf8')
+            if "OK" in response:
+                info = response.split(',')
+                print("Username: " + uname)
+                print("DOB: " + info[0])
+                print("Your note: " + info[1])
+            else:
+                print(response)
+
+
 
         else:
             response = connection.recv(2048).decode("utf8")
@@ -272,6 +300,8 @@ def Allow_to_send(message):
         return False
     elif "--list --local" in message:
     	return False
+    elif "--list -u_info" in message:
+        return False
     # elif "--list --server" in message:
     #     return False
     elif "--login" in message:
@@ -283,6 +313,10 @@ def Allow_to_send(message):
     elif "--change_info" in message:
         return False
     elif "--join --room" in message:
+        return False
+    elif "--register" in message:
+        return False
+    elif "--list --user_info" in message:
         return False
     else:
         return True 
@@ -382,6 +416,7 @@ def print_commands():
     print("'--list --server' to show files on local folder")
     print("'--list --info' to show users information")
     print("'--list --online' to show online users")
+    print("'--list --us_info' to get other user info" )
     print("'--download filename1 filename2 ...' to download one or multiple files from server")
     print("'--upload --change_name file_name alternative_name' to upload file to server with alternative name")
     print("'--upload --encrypt file1.txt' to upload file with txt format to server")

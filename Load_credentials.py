@@ -6,6 +6,7 @@ def Load():
     while usrname != "<Eof>" and password != "<Eof>":
         usrname, password, DOB, Note = f.readline().split(',')
         credentials.update({usrname:[password, DOB, Note]})
+
     f.close()
 
 
