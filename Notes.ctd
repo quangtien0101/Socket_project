@@ -1,0 +1,25 @@
+<?xml version="1.0" ?>
+<cherrytree>
+	<node custom_icon_id="0" foreground="" is_bold="False" name="Notes_for_Project" prog_lang="custom-colors" readonly="False" tags="" ts_creation="1575946936.96" ts_lastsave="1577001184.12" unique_id="1">
+		<rich_text>
+Need to do:
+☑ fix the </rich_text>
+		<rich_text weight="heavy">list</rich_text>
+		<rich_text> for the “--list --server” for client (make it actually query to sever)
+☑ make the chat function become a user-user
+☑ add encryption to login stage
+☒ add encryption to chat stage
+☑ add show options in the client machine
+☑ add change users information
+☑ add change users passwords
+☑ add REGISTER
+☑ add show others user options
+☑ make the join chat can use encryption chat options
+
+
+open the server in the vm
+open the first client in the host
+login as obama “--login -u Obama” with password 1111
+</rich_text>
+	</node>
+</cherrytree>
