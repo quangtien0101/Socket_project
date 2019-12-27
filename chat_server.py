@@ -4,7 +4,6 @@ import select
 from thread import *
 import sys
 
-
 server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 """
 the first argument AF_INET is the address domain of the socket. This is used when we have an Internet Domain
@@ -17,6 +16,7 @@ if len(sys.argv) != 3:
     exit()
 IP_address = str(sys.argv[1])
 Port = int(sys.argv[2])
+#encrypt = str(sys.argv[3])
 server.bind((IP_address, Port)) 
 #binds the server to an entered IP address and at the specified port number. The client must be aware of these parameters
 server.listen(100)
@@ -30,6 +30,8 @@ def clientthread(conn, addr, name):
             try:     
                 message = conn.recv(2048)    
                 if message:
+
+
                     print "<" + name + "> " + message
                     message_to_send = "<" + name + "> " + message
                     message_to_send.strip('\n')

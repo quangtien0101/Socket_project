@@ -6,7 +6,7 @@ SYMBOLS = """ !"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\]^_`ab
 
 def execute(myMode, myMessage):
     myKey = 2023
-    print(myMessage)
+    #print(myMessage)
     translated = ""
     if myMode == 'encrypt':
         #print("encrypting")

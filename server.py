@@ -14,10 +14,6 @@ import affineCipher
 import random
 from _socket import gethostbyname
 #load KEY and Credential
-file = open('secret_key.key', 'rb')
-KEY = file.read() # The key will be type bytes
-file.close()
-decrypt_f = Fernet(KEY)
 
 credentials = Load_credentials.Load()
 
@@ -132,6 +128,41 @@ def client_thread(connection, ip, port, max_buffer_size = 2048):
                 if Wait_for_authentication == True:
                     connection.sendall("ERR! Wrong username or password!".encode('utf8'))
 
+        elif "--register_encrypt" in client_input:
+            print("Client request to create a new account with encryption!")
+            parsing = client_input.split()
+            
+            username = parsing[3]
+            print(username)
+            password = parsing[5]
+            print(password)
+        
+            DOB = parsing[7]
+            print(DOB)
+
+            Note = ""
+            n = parsing[9:]
+
+            for i in n:
+                Note += i
+                Note += " "
+
+            Note += "\n"
+        
+            username = affineCipher.execute("decrypt", username)
+            password = affineCipher.execute("decrypt",password)
+            DOB = affineCipher.execute("decrypt",DOB)
+            Note = affineCipher.execute("decrypt", Note)
+
+
+            credentials.update({username: [password, DOB, Note]})
+            print("Change INFO successfuly!")
+            Write_credentials.Write(credentials)
+            connection.sendall("OK".encode('utf8'))
+
+
+
+
         elif "--register" in client_input:
             print("Client request to create a new account!")
             parsing = client_input.split()
@@ -151,11 +182,13 @@ def client_thread(connection, ip, port, max_buffer_size = 2048):
                 Note += i
                 Note += " "
 
-
+            Note += "\n"
+        
             credentials.update({username: [password, DOB, Note]})
             print("Change INFO successfuly!")
             Write_credentials.Write(credentials)
             connection.sendall("OK".encode('utf8'))
+
 
 
 
@@ -179,7 +212,13 @@ def client_thread(connection, ip, port, max_buffer_size = 2048):
             print("Connection " + ip + ":" + port + " closed")
             is_active = False
             del online_users[username]
+            
+            for p in chat_room:
+                if chat_room[p][0] == username:
+                    del chat_room[p]
         
+        #chat_room.update({port:[username,name]})
+
         elif "--change_password" in client_input:
             change_password(client_input,connection,username)
 
@@ -218,6 +257,23 @@ def client_thread(connection, ip, port, max_buffer_size = 2048):
             else:
                 upload_file(connection, ip, port, client_input)
             
+
+        elif "--find" in client_input:
+            print("Client want to find a user")
+            parsing = client_input.split()
+            print(parsing)
+            query_name = parsing[2]
+            s = "Not found!"
+            for u in credentials:
+                #print(u +":"+credentials[u][0])
+                if (query_name == u):
+                    s = "User exist!"
+                    print("Found it!")
+                    break
+            connection.sendall(s.encode('utf8'))
+
+
+
         elif "--list --online" in client_input:
             print("Host request to get the online users")
 
@@ -240,12 +296,12 @@ def client_thread(connection, ip, port, max_buffer_size = 2048):
         elif "--list --u_info" in client_input:
             print("Get other user info")
             parsing = client_input.split()
-            username = parsing[3]
+            uname = parsing[3]
             s = "Error! Can't find username"
             for u in credentials:
                 #print(u +":"+credentials[u][0])
-                if (username == u):
-                    info = credentials[username]
+                if (uname == u):
+                    info = credentials[uname]
                     s = info[1] + "," + info[2] +" OK"
                     break
 
@@ -274,37 +330,73 @@ def client_thread(connection, ip, port, max_buffer_size = 2048):
             #message = output.split('\n')
             connection.sendall(message)
         elif "--chat" in client_input:
+            print("Client request to open a chat!")
             parsing = client_input.split()
             print(parsing)
-            name = parsing[-1]
-            port = random.randrange(35358,36000,1)
+            name = parsing[2]
+            PORT = random.randrange(35358,36000,1)
+            ID = random.randrange(1, 999, 1)
             print (port)
-            chat_room.update({port:[username,name]})
+            
+            if "--encrypt" in client_input:
+                chat_room.update({PORT:[username,name,str(ID),"e"]})
+            else:
+                chat_room.update({PORT:[username,name,str(ID),"n"]})
+
             
             connection.sendall(str(port).encode('utf8'))
-            subprocess.Popen("gnome-terminal -x python chat_server.py 127.0.0.1 "+str(port), stdout=subprocess.PIPE,stderr=None,shell=True)
+            
+            try:
+                # if "--encrypt" in client_input:
+                #     subprocess.Popen("gnome-terminal -x python chat_server.py " + host + " " +str(PORT)+ " True", stdout=subprocess.PIPE,stderr=None,shell=True)
+                # else:
+                subprocess.Popen("gnome-terminal -x python chat_server.py " + host + " " +str(PORT), stdout=subprocess.PIPE,stderr=None,shell=True)
+                
+                connection.sendall("OK".encode('utf8'))
+            except:
+                connection.sendall("Can't open the chat!". encode('utf8'))
 
-        elif "--join --room" in client_input:
-        #    "--join --room U-request Owner's room"
+        elif "--join --room" in client_input: #    "--join --room ID_number U_name"
             parsing = client_input.split()
             if len(parsing) != 5:
                 print("Invalid arguments in join room")
-                connection.sendall("ERR! owners name is wrong!")
+                connection.sendall("ERR! owners name is wrong!".encode('utf8'))
             else:
-                f = True
-                owners = parsing[4]
-                user = parsing[3]
-                l = [owners]
-                l.append(user)
+                f =True
+                id = parsing[3]
+                print(id)
+                u_name = parsing[4]
+                print(u_name)
                 for p in chat_room:
-                    if l == chat_room[p]:
-                        connection.sendall(("OK!"+str(p)).encode('utf8'))
+                    if chat_room[p][2] == id and (u_name == chat_room[p][0] or u_name == chat_room[p][1]):
+                        connection.sendall(("OK "+str(p) + " " + chat_room[p][3]).encode('utf8'))
                         f= False
                         break
+
                 if f == True:
-                    connection.sendall("ERR! The given name or the room is incorrect!")
-            #print(parsing)
-            
+                    connection.sendall("ERR! The given name or the room is incorrect!".encode('utf8'))
+        
+        elif "--delete --room" in client_input:
+            parsing = client_input.split()
+            if len(parsing) != 5:
+                print("Invalid arguments in join room")
+                connection.sendall("ERR!".encode('utf8'))
+            else:
+                f =True
+                id = parsing[3]
+                print(id)
+                u_name = parsing[4]
+                print(u_name)
+                for p in chat_room:
+                    if chat_room[p][2] == id and (u_name == chat_room[p][0]):
+                        connection.sendall("OK".encode('utf8'))
+                        f= False
+                        del chat_room[p]
+                        break
+
+                if f == True:
+                    connection.sendall("ERR! Can't delete room. You must be the owner's of the room".encode('utf8'))
+
         else:
             print("Processed result: {}".format(client_input))
             connection.sendall("-".encode("utf8"))
@@ -340,7 +432,7 @@ def download_file (connection, ip, port, client_input):
 def Download_Process(sock):
     filename = sock.recv(2048).decode('utf8')
     print(filename)
-    filename = "/home/wayne/qt/Project_socket/File_folder/"+filename
+    filename = "File_folder/"+filename
 
     if os.path.isfile(filename):
         sock.send(("EXISTS " + str(os.path.getsize(filename))).encode('utf8'))             
@@ -353,7 +445,7 @@ def Download_Process(sock):
 
                 print("sent!" + str(i))
                 i = i + 1
-                while i<100000:
+                while i<10000:
                     bytesToSend = f.read(2048)
                     sock.send(bytesToSend)
                     print("sent" + str(i))
@@ -361,6 +453,7 @@ def Download_Process(sock):
 
 
             f.close()
+        
     else:
         sock.send("ERR ".encode('utf8'))
 
@@ -387,7 +480,7 @@ def Upload_process(filename, connection, newfilename = "default", decrypt = Fals
             message = 'Y'
             if message == 'Y':
                 connection.send("OK".encode('utf8'))
-                f = open('/home/wayne/qt/Project_socket/File_folder/'+newfilename, 'wb')
+                f = open('File_folder/'+newfilename, 'wb')
                 data = connection.recv(2048)
                 totalRecv = len(data)
                 print("About to write")
@@ -421,8 +514,8 @@ def create_encrypted_file(filename):
         print("Cannot encrypt non txt file")
         
     else:
-        file_directory = "/home/wayne/qt/Project_socket/File_folder/Encrypted/" + filename
-        f_in =  open('/home/wayne/qt/Project_socket/File_folder/' + filename, "r")
+        file_directory = "File_folder/Encrypted/" + filename
+        f_in =  open('File_folder/' + filename, "r")
         f_out = open(file_directory, 'w')
         message = f_in.read()
         f_in.close()
@@ -437,8 +530,8 @@ def decrypt_file(filename):
         print("Cannot decrypt non txt file")
         
     else:
-        file_directory = "/home/wayne/qt/Project_socket/File_folder/" + filename
-        f_in =  open('/home/wayne/qt/Project_socket/File_folder/' + filename, "r")
+        file_directory = "File_folder/" + filename
+        f_in =  open('File_folder/' + filename, "r")
         
         message = f_in.read()
         f_in.close()
@@ -457,11 +550,8 @@ def change_password(client_input, connection, usrname):
     if len(parsing) != 8:
         connection.sendall("Invalid argument numbers!".encode('utf8'))
         pass
-    elif parsing[2] != '-u' and parsing[4] != '-p' and parsing[1] != '--login' and parsing[6] != '-np':
-        connection.sendall('Invalid arguments for username and password'.encode('utf8'))
-        pass
-    elif parsing[3] != usrname:
-        connection.sendall("Invalid username!").encode('utf8')
+
+    
     else:
         username = parsing[3]
         print(username)
@@ -471,19 +561,33 @@ def change_password(client_input, connection, usrname):
         new_password = parsing[7]
         print(new_password)
 
+        if "--change_password_encrypt" in client_input:
+            print("User is using encryption")
+            username = affineCipher.execute("decrypt",username)
+            password = affineCipher.execute("decrypt", password)
+            new_password = affineCipher.execute("decrypt", new_password)
+
+        respone = "Error! Wrong credentials"
+
         for u in credentials:
             print(u +":"+credentials[u][0])
             if (username == u):
                 if (credentials[u][0].strip('\n') == password):
-                    connection.sendall(("OK").encode('utf8'))
+                    
 
                     #write a new password
                     info = credentials[usrname]
                     DOB, Note = info[1], info[2]
+                    
+
                     credentials.update({usrname: [new_password, DOB, Note]})
                     print("Change password successfuly!")
+                    respone = "OK"
                     Write_credentials.Write(credentials)
                     break
+        
+        connection.sendall(respone.encode('utf8'))
+
 
 def change_info(client_input, connection, usrname):
     print(client_input)
@@ -509,20 +613,27 @@ def change_info(client_input, connection, usrname):
         for i in n:
             Note += i
             Note += " "
-
+        Note +="\n"
+        Note = Note.strip(',')
         print (Note)
+        
+        response = "Error!"
         for u in credentials:
             #print(u +":"+credentials[u][0])
             if (username == u):
                 if (credentials[u][0].strip('\n') == password):
-                    connection.sendall(("OK ").encode('utf8'))
+                    
 
                     #write a new password
                     info = credentials[usrname]
                     credentials.update({usrname: [password, DOB, Note]})
                     print("Change INFO successfuly!")
+                    response = "OK"
                     Write_credentials.Write(credentials)
                     break
+        
+                    
+        connection.sendall(response.encode('utf8'))
 
 
 if __name__ == "__main__":
