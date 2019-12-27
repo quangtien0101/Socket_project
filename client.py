@@ -62,7 +62,7 @@ def main():
 
                 
 
-                print(request_login)
+                #print(request_login)
                 connection.sendall(request_login.encode("utf8"))
 
                 response = connection.recv(2048).decode("utf8")
@@ -89,15 +89,26 @@ def main():
                 Dob = input("Enter your DOB (DD/MM/YYYY): ")
                 Notes = input("Enter your note: ")
                 request = "--register -u " + u_name + " -p "+password +" -dob " + Dob +" -n "+ Notes
+
+                if "--encrypt" in message:
+                    u_name = affineCipher.execute("encrypt",u_name)
+                    password = affineCipher.execute("encrypt", password)
+                    Dob = affineCipher.execute("encrypt",Dob)
+                    Notes = affineCipher.execute("encrypt", Notes)
+                    request = "--register_encrypt -u " + u_name + " -p "+password +" -dob " + Dob +" -n "+ Notes
+                
                 connection.sendall(request.encode('utf8'))
                 response = connection.recv(2048).decode('utf8')
                 if "OK" in response:
                     print("Success!")
                 else:
                     print("Fail to create an account")
+
+        
         else:
             print("command: '--login -u username'")
             print("command: '--register'")
+            print("command: --register --encrypt")
                         
             
         message = input(">> ")
@@ -134,7 +145,10 @@ def main():
         elif "--help" in message:
             print_commands()
 
+        
+            
         elif "--change_password" in message:
+            
             change_password(username, connection)
 
         elif "--change_info" in message:
@@ -182,20 +196,20 @@ def main():
             response = connection.recv(4096).decode('utf8')
             if response == "Null":
                 print("There is 0 room")
-                continue
-
-            rooms = response.split(';')
-            #print(names)
-            for i in rooms:
-                if i == "":
-                    continue
-                print (i)
+                
+            else:
+                rooms = response.split(';')
+                #print(names)
+                for i in rooms:
+                    if i == "":
+                        continue
+                    print (i)
 
         elif "--join --room" in message:
             print("Enter the ROOM ID")
             ID = input()
-            message = "--join --room " + ID + " " + username
-            connection.sendall(message.encode('utf8'))
+            m = "--join --room " + ID + " " + username
+            connection.sendall(m.encode('utf8'))
             response = connection.recv(2048).decode('utf8')
             if "ERR" in response:
                 print(response)
@@ -213,10 +227,10 @@ def main():
                 process = subprocess.Popen("gnome-terminal -x python chat_client.py "+ host + " " + p + " " + username + " " + str(e), stdout=subprocess.PIPE,stderr=None,shell=True)
 
         elif "--delete --room" in message:
-            print("Enter the ROOM ID")
+            print("Enter the ROOM ID to be deleted:")
             ID = input()
-            message = "--delete --room " + ID + " " + username
-            connection.sendall(message.encode('utf8'))
+            m = "--delete --room " + ID + " " + username
+            connection.sendall(m.encode('utf8'))
             response = connection.recv(2048).decode('utf8')
             if "ERR" in response:
                 print(response)
@@ -224,6 +238,12 @@ def main():
                 print("Room deleted")
 
         
+        elif "--download --encrypt" in message:
+            parsing = message.split()
+            items = parsing[2:]
+            for i in items:
+                filename = i
+                Download_encrypt_process(filename, connection,True)
 
         elif "--download" in message:
 
@@ -288,6 +308,16 @@ def main():
                 if i == "":
                     pass
                 print (i)
+        elif "--find" in message:
+            parsing = message.split()
+            if len(parsing) != 2:
+                print("Invalid arguments!")
+            else:
+                message = "--find "+parsing[1]
+                connection.send(message.encode('utf8'))
+                response = connection.recv(4096).decode('utf8')
+                print(response)
+            
         elif "--list --info" in message:
             response = connection.recv(4096).decode("utf8")
             info = response.split(',')
@@ -305,7 +335,7 @@ def main():
                 info = response.split(',')
                 print("Username: " + uname)
                 print("DOB: " + info[0])
-                print("Your note: " + info[1])
+                print("Note: " + info[1])
             else:
                 print(response)
         else:
@@ -348,6 +378,8 @@ def Allow_to_send(message):
         return False
     elif "--delete --room" in message:
         return False
+    elif "--find" in message:
+        return False
     else:
         return True 
 
@@ -369,7 +401,7 @@ def Download_process(filename, s):
                     data = s.recv(2048)
                     totalRecv += len(data)
                     f.write(data)
-                    print ("{0:.2f}".format((totalRecv/float(filesize))*100)+ "% Done")
+                    #print ("{0:.2f}".format((totalRecv/float(filesize))*100)+ "% Done")
                 print ("Download Complete!")
                 f.close()
             else:
@@ -384,7 +416,7 @@ def Upload_process(Connection, encrypt = False):
     print("receving " +filename)
     name = filename
     filename = "Download/" + filename
-    print("the path is " + filename)
+    #print("the path is " + filename)
 
     if os.path.isfile(filename):
         if encrypt == True:
@@ -405,20 +437,18 @@ def Upload_process(Connection, encrypt = False):
 
             i = 0
             bytesToSend = f.read(2048)
-
-                
-
             Connection.send(bytesToSend)
 
-            print("sent!" + str(i))
+            #print("sent!" + str(i))
             i = i + 1
             while i<10000:
                 bytesToSend = f.read(2048)
 
                 Connection.send(bytesToSend)
-                print("sent" + str(i))
+                #print("sent" + str(i))
                 i = i+1
 
+            print("Finish uploading")
 
             f.close()
     else:
@@ -445,18 +475,24 @@ def create_encrypted_file(filename):
         print ("Done making a new encrypted copy!")
 
 def print_commands():
+    print("'--find username1' to check if username1 is exist on Data Base")
     print("'--list --local' to show files on server folder")
     print("'--list --server' to show files on local folder")
     print("'--list --info' to show users information")
     print("'--list --online' to show online users")
     print("'--list --u_info' to get other user info" )
     print("'--download filename1 filename2 ...' to download one or multiple files from server")
+    print("'--download --encrypt file1.txt file2.txt' to download with encryption")
     print("'--upload --change_name file_name alternative_name' to upload file to server with alternative name")
     print("'--upload --encrypt file1.txt' to upload file with txt format to server")
     print("'--upload file1 file2 file3 ...' to upload one or multiple files to server")
     print("'--change_password' to change your password")
     print("'--change_info' to change your information")
-    print("'--chat' to open the chat room")
+    print("'--chat username1' to create chat room with username1")
+    print("'--chat username1 --encrypt' to create encrypted chat room with username1")
+    print("'--list --room' to show available room")
+    print("'--join --room' to join a room that you have access to")
+    print("'--delete --room' to delete a room that YOU created")
 
 def change_password(username, connection):
     current_pass = getpass("Enter your current password: ")
@@ -467,6 +503,15 @@ def change_password(username, connection):
         print("Wrong password confirmation")
     else:
         request = "--change_password -u " + username + " -p " + current_pass + " -np " + new_password
+        encrypted = input("Do you wan to change password with encryption ?(Y/N)")
+        if encrypted.lower() == "y":
+            print("You allow encryption!")
+            e_username = affineCipher.execute("encrypt", username)
+            e_current_pass = affineCipher.execute("encrypt", current_pass)
+            e_new_password = affineCipher.execute("encrypt", new_password)
+
+            request = "--change_password_encrypt -u " + e_username + " -p " + e_current_pass + " -np " + e_new_password
+        
         connection.sendall(request.encode('utf8'))
         response = connection.recv(2048).decode('utf8')
         print(response)
@@ -484,10 +529,63 @@ def change_user_info(username, connection):
     request = "--change_info -u " + username + " -p " + current_pass + " -dob " + dob + " -n " + Notes
     connection.sendall(request.encode('utf8'))
     response = connection.recv(2048).decode('utf8')
+
     if "OK" in response:
         print("Change info successfully!")
     else:
         print("Current password is not correct!")
 
+
+def Download_encrypt_process(filename, connection, decrypt = False):
+    if filename != 'q':
+        connection.send(filename.encode('utf8'))
+        print("asking for the file "+filename)
+        data = connection.recv(2048).decode('utf8')
+        print("data: " + data)
+        if data[:6] == 'EXISTS':
+            filesize = int(data[6:])
+            message = 'Y'
+            if message == 'Y':
+                connection.send("OK".encode('utf8'))
+                f = open('Download/'+filename, 'wb')
+                data = connection.recv(2048)
+                totalRecv = len(data)
+                #print("About to write")
+
+
+                f.write(data)
+                while totalRecv < filesize:
+                    data = connection.recv(2048)
+
+                    totalRecv += len(data)
+                    f.write(data)
+                    #print ("{0:.2f}".format((totalRecv/float(filesize))*100)+ "% Done")
+                print ("Download complete!")
+                f.close()
+
+
+                if decrypt == True:
+                    decrypt_file(filename)
+                create_encrypted_file(filename)
+                
+        else:
+            print ("File Does Not Exist!")
+
+def decrypt_file(filename):
+    if ".txt" not in filename:
+        print("Cannot decrypt non txt file")
+        
+    else:
+        file_directory = "Download/" + filename
+        f_in =  open('Download/' + filename, "r")
+        
+        message = f_in.read()
+        f_in.close()
+        f_out = open(file_directory, 'w')
+        encrypted_message = affineCipher.execute("decrypt", message)
+        f_out.write(encrypted_message)
+
+        
+        f_out.close()
 if __name__ == "__main__":
     main()
