@@ -14,10 +14,6 @@ import affineCipher
 import random
 from _socket import gethostbyname
 #load KEY and Credential
-file = open('secret_key.key', 'rb')
-KEY = file.read() # The key will be type bytes
-file.close()
-decrypt_f = Fernet(KEY)
 
 credentials = Load_credentials.Load()
 
@@ -132,6 +128,41 @@ def client_thread(connection, ip, port, max_buffer_size = 2048):
                 if Wait_for_authentication == True:
                     connection.sendall("ERR! Wrong username or password!".encode('utf8'))
 
+        elif "--register_encrypt" in client_input:
+            print("Client request to create a new account with encryption!")
+            parsing = client_input.split()
+            
+            username = parsing[3]
+            print(username)
+            password = parsing[5]
+            print(password)
+        
+            DOB = parsing[7]
+            print(DOB)
+
+            Note = ""
+            n = parsing[9:]
+
+            for i in n:
+                Note += i
+                Note += " "
+
+            Note += "\n"
+        
+            username = affineCipher.execute("decrypt", username)
+            password = affineCipher.execute("decrypt",password)
+            DOB = affineCipher.execute("decrypt",DOB)
+            Note = affineCipher.execute("decrypt", Note)
+
+
+            credentials.update({username: [password, DOB, Note]})
+            print("Change INFO successfuly!")
+            Write_credentials.Write(credentials)
+            connection.sendall("OK".encode('utf8'))
+
+
+
+
         elif "--register" in client_input:
             print("Client request to create a new account!")
             parsing = client_input.split()
@@ -157,6 +188,7 @@ def client_thread(connection, ip, port, max_buffer_size = 2048):
             print("Change INFO successfuly!")
             Write_credentials.Write(credentials)
             connection.sendall("OK".encode('utf8'))
+
 
 
 
@@ -192,6 +224,11 @@ def client_thread(connection, ip, port, max_buffer_size = 2048):
 
         elif "--change_info" in client_input:
             change_info(client_input, connection, username)
+        
+        elif "--download --encrypt" in client_input:
+            print("Host request to download with encryption")
+            download_file(connection, ip, port, client_input, True)
+
         elif "--download" in client_input:
             print ("Host request to download")
             #connection.sendall("you request to download".encode("utf8"))
@@ -206,7 +243,7 @@ def client_thread(connection, ip, port, max_buffer_size = 2048):
                 parsing = client_input.split()
                 if len(parsing) < 5:
                     print("Invalid argument number")
-                    pass
+                    
                 else:
                     filename = parsing[3]
                     newfilename = parsing[4]
@@ -217,7 +254,7 @@ def client_thread(connection, ip, port, max_buffer_size = 2048):
                 parsing = client_input.split()
                 if len(parsing) != 4:
                     print("Invalid argument number")
-                    pass
+                    
                 else:
                     filename = parsing[3]
                     Upload_process(filename,connection,"default",True)
@@ -225,6 +262,23 @@ def client_thread(connection, ip, port, max_buffer_size = 2048):
             else:
                 upload_file(connection, ip, port, client_input)
             
+
+        elif "--find" in client_input:
+            print("Client want to find a user")
+            parsing = client_input.split()
+            print(parsing)
+            query_name = parsing[2]
+            s = "Not found!"
+            for u in credentials:
+                #print(u +":"+credentials[u][0])
+                if (query_name == u):
+                    s = "User exist!"
+                    print("Found it!")
+                    break
+            connection.sendall(s.encode('utf8'))
+
+
+
         elif "--list --online" in client_input:
             print("Host request to get the online users")
 
@@ -340,7 +394,7 @@ def client_thread(connection, ip, port, max_buffer_size = 2048):
                 print(u_name)
                 for p in chat_room:
                     if chat_room[p][2] == id and (u_name == chat_room[p][0]):
-                        connection.sendall("OK".encode)
+                        connection.sendall("OK".encode('utf8'))
                         f= False
                         del chat_room[p]
                         break
@@ -371,14 +425,22 @@ def process_input(input_str):
 
     return "Hello " + str(input_str)
 
-def download_file (connection, ip, port, client_input):
+def download_file (connection, ip, port, client_input, encrypt = False):
     parsing = client_input.split()
 
     #separte the items need to be download from the command (--download Hello.txt goobye.csv)
-    items = parsing[2:]
-    for i in items:
-        print(i)
-        Download_Process(connection)
+    #(--download --encrypt file1 file2.txt)
+    if encrypt:
+        items = parsing[3:]
+        for i in items:
+            print(i)
+            Download_encrypt_process(connection,True)
+    
+    else:
+        items = parsing[2:]
+        for i in items:
+            print(i)
+            Download_Process(connection)
     
 def Download_Process(sock):
     filename = sock.recv(2048).decode('utf8')
@@ -394,13 +456,14 @@ def Download_Process(sock):
                 bytesToSend = f.read(2048)
                 sock.send(bytesToSend)
 
-                print("sent!" + str(i))
+                #print("sent!" + str(i))
                 i = i + 1
                 while i<10000:
                     bytesToSend = f.read(2048)
                     sock.send(bytesToSend)
-                    print("sent" + str(i))
+                    #print("sent" + str(i))
                     i = i + 1
+                print("Download process complete!")
 
 
             f.close()
@@ -501,11 +564,8 @@ def change_password(client_input, connection, usrname):
     if len(parsing) != 8:
         connection.sendall("Invalid argument numbers!".encode('utf8'))
         pass
-    elif parsing[2] != '-u' and parsing[4] != '-p' and parsing[1] != '--login' and parsing[6] != '-np':
-        connection.sendall('Invalid arguments for username and password'.encode('utf8'))
-        pass
-    elif parsing[3] != usrname:
-        connection.sendall("Invalid username!").encode('utf8')
+
+    
     else:
         username = parsing[3]
         print(username)
@@ -514,19 +574,29 @@ def change_password(client_input, connection, usrname):
         
         new_password = parsing[7]
         print(new_password)
+
+        if "--change_password_encrypt" in client_input:
+            print("User is using encryption")
+            username = affineCipher.execute("decrypt",username)
+            password = affineCipher.execute("decrypt", password)
+            new_password = affineCipher.execute("decrypt", new_password)
+
         respone = "Error! Wrong credentials"
 
         for u in credentials:
             print(u +":"+credentials[u][0])
             if (username == u):
                 if (credentials[u][0].strip('\n') == password):
-                    respone = "OK"
+                    
 
                     #write a new password
                     info = credentials[usrname]
                     DOB, Note = info[1], info[2]
+                    
+
                     credentials.update({usrname: [new_password, DOB, Note]})
                     print("Change password successfuly!")
+                    respone = "OK"
                     Write_credentials.Write(credentials)
                     break
         
@@ -558,22 +628,89 @@ def change_info(client_input, connection, usrname):
             Note += i
             Note += " "
         Note +="\n"
+        Note = Note.strip(',')
         print (Note)
+        
         response = "Error!"
         for u in credentials:
             #print(u +":"+credentials[u][0])
             if (username == u):
                 if (credentials[u][0].strip('\n') == password):
-                    response = "OK"
+                    
 
                     #write a new password
                     info = credentials[usrname]
                     credentials.update({usrname: [password, DOB, Note]})
                     print("Change INFO successfuly!")
+                    response = "OK"
                     Write_credentials.Write(credentials)
                     break
         
-            connection.sendall(response.encode('utf8'))
+                    
+        connection.sendall(response.encode('utf8'))
+
+def Download_encrypt_process(Connection, encrypt = False):
+
+    filename = Connection.recv(2048).decode('utf8')
+    print("receving " +filename)
+    name = filename
+    filename = "File_folder/" + filename
+    #print("the path is " + filename)
+
+    if os.path.isfile(filename):
+        if encrypt == True:
+            create_encrypted_file(name)
+
+
+
+
+        Connection.send(("EXISTS " + str(os.path.getsize(filename))).encode('utf8'))
+        print("Uploading...")
+        userResponse = Connection.recv(2048).decode('utf8')
+        if userResponse[:2] == 'OK':
+            f = 1 # init a dumb variable for f
+            if encrypt == True:
+                f = open("File_folder/Encrypted/" + name, 'rb')
+            else:
+                f = open(filename, 'rb')
+
+            i = 0
+            bytesToSend = f.read(2048)
+            Connection.send(bytesToSend)
+
+            i = i + 1
+            while i<10000:
+                bytesToSend = f.read(2048)
+
+                Connection.send(bytesToSend)
+                i = i+1
+
+            print("Finish Downloading")
+
+            f.close()
+    else:
+        Connection.send("ERR ".encode('utf8'))
+        print("The file " + name + " doesn't exist!")
+
+    print("Finish Retriving")
+
+    if ".txt" not in filename:
+        print("Cannot encrypt non txt file")
+        
+    else:
+        file_directory = "File_folder/Encrypted/" + name
+        f_in =  open(filename, "r")
+        f_out = open(file_directory, 'w')
+        message = f_in.read()
+        f_in.close()
+        encrypted_message = affineCipher.execute("encrypt", message)
+        f_out.write(encrypted_message)
+
+        
+        f_out.close()
+        print ("Done making a new encrypted copy!")
+
+
 
 
 if __name__ == "__main__":
